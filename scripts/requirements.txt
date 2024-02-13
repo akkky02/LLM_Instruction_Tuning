@@ -1,0 +1,11 @@
+torch
+transformers
+datasets
+accelerate
+peft
+trl
+bitsandbytes
+wandb
+huggingface_hub
+python_dotenv
+lm-eval
