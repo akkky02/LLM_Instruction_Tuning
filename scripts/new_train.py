@@ -5,7 +5,7 @@ import warnings
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, Dict, List, Literal, Optional, Union
-
+import datasets
 import torch
 from datasets import load_dataset
 from dotenv import find_dotenv, load_dotenv
@@ -28,7 +28,7 @@ load_dotenv(find_dotenv())
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 WANDB_API_KEY = os.getenv("WANDB_API_KEY")
-
+from huggingface_hub.hf_api import HfFolder; HfFolder.save_token(HF_TOKEN)
 
 @dataclass
 class ModelArguments:
@@ -48,15 +48,15 @@ class ModelArguments:
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
 
-    token: str = field(
-        default=HF_TOKEN,
-        metadata={
-            "help": (
-                "The token to use as HTTP bearer authorization for remote files. If not specified, will use the token "
-                "generated when running `huggingface-cli login` (stored in `~/.huggingface`)."
-            )
-        },
-    )
+    # token: str = field(
+    #     default=HF_TOKEN,
+    #     metadata={
+    #         "help": (
+    #             "The token to use as HTTP bearer authorization for remote files. If not specified, will use the token "
+    #             "generated when running `huggingface-cli login` (stored in `~/.huggingface`)."
+    #         )
+    #     },
+    # )
     torch_dtype: Optional[str] = field(
         default=None,
         metadata={
@@ -91,7 +91,7 @@ class DataTrainingArguments:
 
 
 @dataclass
-class LoraArgs():
+class QLoraArgs():
     """
     This is the configuration class to store the configuration of a [`LoraModel`].
 
@@ -113,9 +113,12 @@ class LoraArgs():
         default="none", metadata={"help": "Bias type for Lora. Can be 'none', 'all' or 'lora_only'"}
     )
     task_type: Optional[str]  = field(default='CAUSAL_LM', metadata={"help": "Task type"})
+    load_in_4bit: bool = field(default=True, metadata={"help": "Load in 4bit"})
+    bnb_4bit_use_double_quant : bool = field(default=True, metadata={"help": "Use double quant"})
+    bnb_4bit_quant_type : str = field(default="nf4", metadata={"help": "Quant type"})
+    bnb_4bit_compute_dtype : torch.dtype = field(default=torch.bfloat16, metadata={"help": "Compute dtype"})
 
         
-
 def load_model(model_name, bnb_config):
     # Load model and tokenizer
     n_gpus = torch.cuda.device_count()
@@ -181,7 +184,7 @@ def preprocess_dataset(tokenizer, max_length, seed, dataset):
     # Preprocess dataset
     print("Preprocessing dataset...")
     
-    dataset = dataset.map(create_prompt_formats, batched=True) 
+    dataset = dataset.map(create_prompt_formats, batched=False) 
     
     _preprocess_batch = partial(preprocess_batch, tokenizer=tokenizer, max_length=max_length)
     dataset = dataset.map(_preprocess_batch, batched=True, remove_columns=["instruction", "context", "response", "text"])
@@ -191,14 +194,14 @@ def preprocess_dataset(tokenizer, max_length, seed, dataset):
     dataset = dataset.shuffle(seed=seed)
     return dataset
 
-def create_bnb_config():
-    # Create Bits&Bytes config
-    return BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-    )
+# def create_bnb_config(qlora_args):
+#     # Create Bits&Bytes config
+#     return BitsAndBytesConfig(
+#         load_in_4bit=True,
+#         bnb_4bit_use_double_quant=True,
+#         bnb_4bit_quant_type="nf4",
+#         bnb_4bit_compute_dtype=torch.bfloat16,
+#     )
 
 # def create_peft_config(modules):
 #     # Create PEFT config
@@ -243,14 +246,14 @@ def print_trainable_parameters(model, use_4bit=False):
         
     print(f"all params: {all_params:,d} || trainable params: {trainable_params:,d} || trainable%: {100 * trainable_params / all_params}")
 
-def train(model, tokenizer, dataset, training_args, lora_args, output_dir):
+def train(model, tokenizer, dataset, training_args, qlora_args):
     # Training
     
     # Prepare model
     model.gradient_checkpointing_enable()
     model = prepare_model_for_kbit_training(model)
     
-    peft_config = LoraConfig(lora_args)
+    peft_config = LoraConfig(qlora_args)
     model = get_peft_model(model, peft_config)
     
     print_trainable_parameters(model)
@@ -278,8 +281,8 @@ def train(model, tokenizer, dataset, training_args, lora_args, output_dir):
 
     # Save model
     print("Saving model...") 
-    os.makedirs(output_dir, exist_ok=True)
-    trainer.model.save_pretrained(output_dir)
+    os.makedirs(training_args.output_dir, exist_ok=True)
+    trainer.model.save_pretrained(training_args.output_dir)
 
     # Cleanup
     del model
@@ -290,18 +293,18 @@ def train(model, tokenizer, dataset, training_args, lora_args, output_dir):
 
 def main():
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, LoraArgs))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, QLoraArgs))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args, lora_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, qlora_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args, lora_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, qlora_args = parser.parse_args_into_dataclasses()
 
 
     # Load model and tokenizer
     model_name = model_args.model_name_or_path
-    bnb_config = create_bnb_config()
+    bnb_config = BitsAndBytesConfig(qlora_args)
     model, tokenizer = load_model(model_name, bnb_config)
 
     # Load dataset
@@ -313,8 +316,8 @@ def main():
     dataset = preprocess_dataset(tokenizer, max_length, 56, dataset)
 
     # Train
-    output_dir = "llama2_finetuned" 
-    train(model, tokenizer, dataset, training_args, lora_args ,output_dir)
+    # output_dir = "llama2_finetuned" 
+    train(model, tokenizer, dataset, training_args, qlora_args)
     
     
 if __name__ == "__main__":
