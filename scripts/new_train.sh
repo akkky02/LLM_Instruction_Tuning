@@ -5,7 +5,6 @@ python3 new_train.py \
 --output_dir "llama2_finetuned" \
 --dataset_name "yahma/alpaca-cleaned" \
 --num_train_epochs 1 \
---per_device_train_batch_size 1 \
 --r 16 \
 --lora_alpha 64 \
 --target_modules "all-linear" \

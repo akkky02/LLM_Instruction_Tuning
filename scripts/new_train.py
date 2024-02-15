@@ -116,7 +116,7 @@ class QLoraArgs():
     load_in_4bit: bool = field(default=True, metadata={"help": "Load in 4bit"})
     bnb_4bit_use_double_quant : bool = field(default=True, metadata={"help": "Use double quant"})
     bnb_4bit_quant_type : str = field(default="nf4", metadata={"help": "Quant type"})
-    bnb_4bit_compute_dtype : torch.dtype = field(default=torch.bfloat16, metadata={"help": "Compute dtype"})
+    # bnb_4bit_compute_dtype : float = field(default=torch.bfloat16, metadata={"help": "Compute dtype"})
 
         
 def load_model(model_name, bnb_config):
@@ -178,13 +178,15 @@ def preprocess_batch(batch, tokenizer, max_length):
         batch["text"],
         max_length=max_length,
         truncation=True,
+        padding="max_length",
+        return_tensors="pt",
     )
 
 def preprocess_dataset(tokenizer, max_length, seed, dataset):
     # Preprocess dataset
     print("Preprocessing dataset...")
     
-    dataset = dataset.map(create_prompt_formats, batched=False) 
+    dataset = dataset.map(create_prompt_formats, batched=True) 
     
     _preprocess_batch = partial(preprocess_batch, tokenizer=tokenizer, max_length=max_length)
     dataset = dataset.map(_preprocess_batch, batched=True, remove_columns=["instruction", "context", "response", "text"])
@@ -304,7 +306,12 @@ def main():
 
     # Load model and tokenizer
     model_name = model_args.model_name_or_path
-    bnb_config = BitsAndBytesConfig(qlora_args)
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=qlora_args.load_in_4bit,
+        bnb_4bit_use_double_quant=qlora_args.bnb_4bit_use_double_quant,
+        bnb_4bit_quant_type=qlora_args.bnb_4bit_quant_type,
+        bnb_4bit_compute_dtype=torch.bfloat16,
+    )
     model, tokenizer = load_model(model_name, bnb_config)
 
     # Load dataset
