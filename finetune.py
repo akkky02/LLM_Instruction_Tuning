@@ -1,37 +1,29 @@
 from collections import defaultdict
-import copy
 from functools import partial
-import json
 import os
 from os.path import exists, join, isdir
 from dataclasses import dataclass, field
-import sys
 from typing import List, Optional, Dict, Sequence, Union
 import numpy as np
 from tqdm import tqdm
-import logging
 import bitsandbytes as bnb
 import pandas as pd
-import importlib
 from packaging import version
 from packaging.version import parse
 
 import torch
 import transformers
-from torch.nn.utils.rnn import pad_sequence
 import argparse
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     set_seed,
-    Seq2SeqTrainer,
     BitsAndBytesConfig,
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,
 )
 from datasets import load_dataset, Dataset
-import evaluate
 
 from peft import (
     prepare_model_for_kbit_training,
@@ -47,6 +39,7 @@ load_dotenv(find_dotenv())
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 WANDB_API_KEY = os.getenv("WANDB_API_KEY")
+os.environ["WANDB_PROJECT"] = "LLM_IFT_Experiments"
 
 
 
@@ -81,7 +74,7 @@ class TrainingArguments(transformers.TrainingArguments):
     optim: str = field(default='paged_adamw_32bit', metadata={"help": 'The optimizer to be used'})
     per_device_train_batch_size: int = field(default=1, metadata={"help": 'The training batch size per GPU. Increase for better speed.'})
     gradient_accumulation_steps: int = field(default=16, metadata={"help": 'How many gradients to accumulate before to perform an optimizer step'})
-    max_steps: int = field(default=10000, metadata={"help": 'How many optimizer update steps to take'})
+    # max_steps: int = field(default=10000, metadata={"help": 'How many optimizer update steps to take'})
     weight_decay: float = field(default=0.0, metadata={"help": 'The L2 weight decay rate of AdamW'})  # use lora dropout instead for regularization if needed
     learning_rate: float = field(default=0.0002, metadata={"help": 'The learning rate'})
     max_grad_norm: float = field(default=0.3, metadata={"help": 'Gradient clipping max norm. This is tuned and works well for all models tested.'})

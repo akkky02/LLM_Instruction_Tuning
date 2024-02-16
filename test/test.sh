@@ -10,7 +10,7 @@ python3 test.py \
 --lora_r 16 \
 --lora_alpha 32 \
 --lora_dropout 0.1 \
-# --max_memory_MB 6000 \
+--target_modules 'q_proj', 'v_proj', 'down_proj' \
 --report_to "wandb" \
 --output_dir "./output" \
 --optim "paged_adamw_32bit" \
