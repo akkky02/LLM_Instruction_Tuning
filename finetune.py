@@ -62,27 +62,24 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
-    double_quant: bool = field(default=True, metadata={"help": "Compress the quantization statistics through double quantization."})
-    quant_type: str = field(default="nf4", metadata={"help": "Quantization data type to use. Should be one of `fp4` or `nf4`."})
-    bits: int = field(default=4, metadata={"help": "How many bits to use."})
-    lora_r: int = field(default=64, metadata={"help": "Lora R dimension."})
+    bnb_4bit_use_double_quant: bool = field(default=False, metadata={"help": "Compress the quantization statistics through double quantization."})
+    bnb_4bit_quant_type: str = field(default="fp4", metadata={"help": "Quantization data type to use. Should be one of `fp4` or `nf4`."})
+    load_in_4bit: bool = field(default=False, metadata={"help": "Load the model in 4-bit mode."})
+    lora_r: int = field(default=8, metadata={"help": "Lora R dimension."})
     lora_alpha: float = field(default=16, metadata={"help": "Lora alpha."})
-    lora_dropout: float = field(default=0.0, metadata={"help": "Lora dropout."})
+    lora_dropout: float = field(default=0.05, metadata={"help": "Lora dropout."})
     target_modules: List[str] = field(default_factory=lambda: ['q_proj', 'k_proj'], metadata={"help": "Lora apply to these modules. eg ['gate_proj', 'q_proj', 'v_proj', 'down_proj', 'o_proj', 'up_proj', 'k_proj']"})
     report_to: str = field(default='wandb', metadata={"help": "To use wandb or something else for reporting."})
     output_dir: str = field(default='./output', metadata={"help": 'The output dir for logs and checkpoints'})
-    optim: str = field(default='paged_adamw_32bit', metadata={"help": 'The optimizer to be used'})
+    optimizer: str = field(default='AdamW', metadata={"help": 'The optimizer to be used'})
     per_device_train_batch_size: int = field(default=1, metadata={"help": 'The training batch size per GPU. Increase for better speed.'})
     gradient_accumulation_steps: int = field(default=16, metadata={"help": 'How many gradients to accumulate before to perform an optimizer step'})
-    # max_steps: int = field(default=10000, metadata={"help": 'How many optimizer update steps to take'})
     weight_decay: float = field(default=0.0, metadata={"help": 'The L2 weight decay rate of AdamW'})  # use lora dropout instead for regularization if needed
     learning_rate: float = field(default=0.0002, metadata={"help": 'The learning rate'})
-    max_grad_norm: float = field(default=0.3, metadata={"help": 'Gradient clipping max norm. This is tuned and works well for all models tested.'})
-    gradient_checkpointing: bool = field(default=True, metadata={"help": 'Use gradient checkpointing. You want to use this.'})
+    gradient_checkpointing: bool = field(default=False, metadata={"help": 'Use gradient checkpointing. You want to use this.'})
     do_train: bool = field(default=True, metadata={"help": 'To train or not to train, that is the question?'})
     lr_scheduler_type: str = field(default='constant', metadata={"help": 'Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis'})
-    warmup_ratio: float = field(default=0.03, metadata={"help": 'Fraction of steps to do a warmup for'})
-    logging_steps: int = field(default=10, metadata={"help": 'The frequency of update steps after which to log the loss'})
+    logging_steps: int = field(default=1, metadata={"help": 'The frequency of update steps after which to log the loss'})
     save_strategy: str = field(default='steps', metadata={"help": 'When to save checkpoints'})
     save_steps: int = field(default=250, metadata={"help": 'How often to save a model'})
     save_total_limit: int = field(default=3, metadata={"help": 'How many checkpoints to save before the oldest is overwritten'})
@@ -184,9 +181,9 @@ def preprocess_dataset(tokenizer: AutoTokenizer, max_length: int, seed, input_da
 
 def create_bnb_config(args):
     bnb_config = BitsAndBytesConfig(
-        load_in_4bit=args.bits == 4,
-        bnb_4bit_use_double_quant=args.double_quant,
-        bnb_4bit_quant_type=args.quant_type,
+        load_in_4bit=args.load_in_4bit,
+        bnb_4bit_use_double_quant=args.bnb_4bit_use_double_quant,
+        bnb_4bit_quant_type=args.bnb_4bit_quant_type,
         bnb_4bit_compute_dtype= torch.float16 if args.fp16 else (torch.bfloat16 if args.bf16 else torch.float32),
     )
 
@@ -245,7 +242,8 @@ def print_trainable_parameters(model, use_4bit=False):
 def train(model, tokenizer, dataset, output_dir, training_args):
     # Apply preprocessing to the model to prepare it by
     # 1 - Enabling gradient checkpointing to reduce memory usage during fine-tuning
-    model.gradient_checkpointing_enable()
+    # model.gradient_checkpointing_enable()
+    model.enable_input_require_grads()
 
     # 2 - Using the prepare_model_for_kbit_training method from PEFT
     model = prepare_model_for_kbit_training(model)
@@ -266,7 +264,7 @@ def train(model, tokenizer, dataset, output_dir, training_args):
         model=model,
         train_dataset=dataset,
         args=training_args,
-        data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
+        data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False),
     )
 
     model.config.use_cache = False  # re-enable for inference to speed up predictions for similar inputs

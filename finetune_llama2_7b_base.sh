@@ -11,20 +11,18 @@ python3 finetune.py \
 --report_to "wandb" \
 --run_name "lama2_7b_base_adapter" \
 --output_dir "./experiments" \
---optim "paged_adamw_32bit" \
 --per_device_train_batch_size 1 \
 --gradient_accumulation_steps 128 \
 --learning_rate 3e-4 \
 --weight_decay 0.01 \
---gradient_accumulation_steps 128 \
---gradient_checkpointing \
 --do_train \
---warmup_steps 10 \
+--warmup_steps 100 \
+--optimizer "AdamW" \
 --logging_steps 1 \
 --save_strategy "steps" \
---save_steps 10000 \
+--save_steps 25 \
 --save_total_limit 3 \
 --push_to_hub \
---hub_model_id "MAdAiLab/lama2_7b_base_adapter" \
---hub_strategy "every_save"
+--hub_model_id "MAdAiLab/llama2_7b_base_adapter" \
+--hub_strategy "checkpoint" \
 
