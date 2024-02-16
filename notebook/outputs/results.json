@@ -1,0 +1,57 @@
+{
+  "results": {
+    "blimp_causative": {
+      "acc,none": 0.743,
+      "acc_stderr,none": 0.013825416526895042,
+      "alias": "blimp_causative"
+    }
+  },
+  "configs": {
+    "blimp_causative": {
+      "task": "blimp_causative",
+      "group": "blimp",
+      "dataset_path": "blimp",
+      "dataset_name": "causative",
+      "validation_split": "train",
+      "doc_to_text": "",
+      "doc_to_target": 0,
+      "doc_to_choice": "{{[sentence_good, sentence_bad]}}",
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "acc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "{{sentence_good}} {{sentence_bad}}",
+      "metadata": {
+        "version": 1.0
+      }
+    }
+  },
+  "versions": {
+    "blimp_causative": 1.0
+  },
+  "n-shot": {
+    "blimp_causative": 0
+  },
+  "config": {
+    "model": "hf",
+    "model_args": "pretrained=MAdAiLab/llama2_7b_base_adapter_merged_final",
+    "batch_size": "auto",
+    "batch_sizes": [
+      64
+    ],
+    "device": "cuda:0",
+    "use_cache": null,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "gen_kwargs": null
+  },
+  "git_hash": "c5e9ffb"
+}

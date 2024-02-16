@@ -301,7 +301,8 @@ def train(model, tokenizer, dataset, output_dir, training_args):
     print("Saving last checkpoint of the model...")
     os.makedirs(output_dir, exist_ok=True)
     trainer.model.save_pretrained(output_dir)
-
+    # trainer.tokenizer.push_to_hub(output_dir, use_temp_dir=True, commit_message="Add tokenizer")
+    # trainer.push_to_hub(use_temp_dir=True, commit_message="Add model")
     # Free memory for merging weights
     del model
     del trainer
