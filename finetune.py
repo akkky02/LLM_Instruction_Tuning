@@ -186,6 +186,7 @@ def create_bnb_config(args):
         bnb_4bit_quant_type=args.bnb_4bit_quant_type,
         bnb_4bit_compute_dtype= torch.float16 if args.fp16 else (torch.bfloat16 if args.bf16 else torch.float32),
     )
+    return bnb_config
 
 def create_peft_config(training_args):
     """
@@ -331,6 +332,7 @@ def main():
 
     # Train
     train(model, tokenizer, dataset, training_args.output_dir ,training_args)
+    bnb_config.to_json_file(training_args.output_dir)
 
 if __name__ == "__main__":
     main()
