@@ -332,7 +332,8 @@ def main():
 
     # Train
     train(model, tokenizer, dataset, training_args.output_dir ,training_args)
-    bnb_config.to_json_file(training_args.output_dir)
+    bnb_config_path = os.path.join(training_args.output_dir, "bnb_config.json")
+    bnb_config.to_json_file(bnb_config_path)
 
 if __name__ == "__main__":
     main()
