@@ -1,0 +1,31 @@
+{
+    "results": {
+      "arithmetic_2ds": {
+        "acc": 0.546,
+        "acc_stderr": 0.011135708419359798
+      },
+      "arithmetic_4ds": {
+        "acc": 0.398,
+        "acc_stderr": 0.010947964603728244
+      },
+      "blimp_causative": {
+        "acc": 0.782,
+        "acc_stderr": 0.01306317904059529
+      }
+    },
+    "versions": {
+      "arithmetic_2ds": 0,
+      "arithmetic_4ds": 0,
+      "blimp_causative": 0
+    },
+    "config": {
+      "model": "Llama-2-7b-hf",
+      "batch_size": 1,
+      "device": "cuda:0",
+      "num_fewshot": 0,
+      "limit": null,
+      "bootstrap_iters": 100000,
+      "no_cache": true
+    }
+  }
+  
