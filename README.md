@@ -107,6 +107,7 @@ To run these experiments on the Runpod platform, follow these steps:
 ## Results
 
 The results of the experiments are available in the `results/` directory. Each subdirectory contains the evaluation metrics for a specific LoRA or QLoRA configuration applied to the Llama2 7B model.
+For a detailed report and analysis, please refer to our [Evaluation of Llama 2 7b model with LoRA and QLoRA using Huggingface ecosystem ](https://akshat-patil.notion.site/Evaluation-of-Llama-2-7b-model-with-LoRA-and-QLoRA-using-Huggingface-ecosystem-fb714bf2a8c74b2186b4f13879a576f5?pvs=4).
 
 ## Contributing
 
